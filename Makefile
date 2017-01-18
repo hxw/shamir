@@ -1,17 +1,32 @@
-all: ssss-split ssss-combine ssss.1 ssss.1.html
+# MAKEFILE
 
-ssss-split: ssss.c
-	$(CC) -W -Wall -O2 -lgmp -o ssss-split ssss.c
-	strip ssss-split
+CFLAGS += -I/usr/local/include
+CFLAGS += -W -Wall -O2
 
-ssss-combine: ssss-split
-	ln -f ssss-split ssss-combine
+LDFLAGS += -L/usr/local/lib
+LDFLAGS += -lgmp
 
-ssss.1: ssss.manpage.xml
-	xmltoman ssss.manpage.xml > ssss.1
+OBJECTS += main.o
+OBJECTS += shamir.o
 
-ssss.1.html: ssss.manpage.xml
-	xmlmantohtml ssss.manpage.xml > ssss.1.html
+
+all: shamir-split shamir-combine shamir.1 shamir.1.html
+
+shamir-split: ${OBJECTS}
+	$(CC) ${LDFLAGS}  -o shamir-split ${OBJECTS}
+	strip shamir-split
+
+shamir-combine: shamir-split
+	ln -f shamir-split shamir-combine
+
+shamir.1: shamir.manpage.xml
+	xmltoman shamir.manpage.xml > shamir.1
+
+shamir.1.html: shamir.manpage.xml
+	xmlmantohtml shamir.manpage.xml > shamir.1.html
+
+
+${OBJECTSS}: shamir.h
 
 clean:
-	rm -rf ssss-split ssss-combine ssss.1 ssss.1.html
+	rm -rf shamir-split shamir-combine shamir.1 shamir.1.html
