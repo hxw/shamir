@@ -609,15 +609,23 @@ error_t internal_split_cb(void* data, const char *buffer, size_t length, int num
 }
 
 
-EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode, const cprng_t *cprng) {
+EXPORT error_t wrapped_split(char **shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode, const cprng_t *cprng) {
 	if (NULL == shares) {
 		return 	ERROR_INPUT_IS_NULL;
+	}
+	return split(secret, internal_split_cb, shares, security, threshold, number, diffusion, prefix, hexmode, cprng);
+
+}
+
+EXPORT char **wrapped_allocate_shares(int number) {
+	if (0 == number) {
+		return NULL;
 	}
 
 	// allocate array
 	char **p = (char **)malloc(number * sizeof(char *));
 	if (NULL == p) {
-		return ERROR_MALLOC_FAILED;
+		return NULL;
 	}
 
 	// make all pointer initially NULL
@@ -631,32 +639,28 @@ EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security,
 				free(p[j]);
 			}
 			free(p);
-			return ERROR_MALLOC_FAILED;
+			return NULL;
 		}
 		memset(p[i], 0, MAXLINELEN);
 
 	}
-	shares->shares = p;
-	shares->number = number;
-	shares->size = MAXLINELEN;
-	return split(secret, internal_split_cb, p, security, threshold, number, diffusion, prefix, hexmode, cprng);
-
+	return p;
 }
 
-EXPORT error_t wrapped_free_shares(shares_t *shares) {
+EXPORT error_t wrapped_free_shares(char **shares, int number) {
 	if (NULL == shares) {
 		return ERROR_INPUT_IS_NULL;
 	}
-	if (shares->number < 1) {
+	if (number < 1) {
 		return ERROR_OK;
 	}
-	for (int j = 0; j < shares->number; ++j) {
-		memset(shares->shares[j], 0, shares->size); // clear sensitive data
-		free(shares->shares[j]);
+	for (int j = 0; j < number; ++j) {
+		char * s = shares[j];
+		size_t n =  strnlen(s, MAXLINELEN);
+		memset(s, 0, n); // clear sensitive data
+		free(s);
 	}
-	free(shares->shares);
-	shares->shares = NULL;
-	shares->number = 0;
+	free(shares);
 	return ERROR_OK;
 }
 

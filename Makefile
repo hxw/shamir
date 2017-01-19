@@ -2,7 +2,7 @@
 
 CFLAGS += -I/usr/local/include
 CFLAGS += -W -Wall -O2
-//CFLAGS += -DTESTING=1
+CFLAGS += ${TEST_ITEMS}
 
 LDFLAGS += -L/usr/local/lib
 LDFLAGS += -lgmp
@@ -14,11 +14,15 @@ OBJECTS += shamir.o
 all: shamir-split shamir-combine shamir.1 shamir.1.html
 
 shamir-split: ${OBJECTS}
-	$(CC) ${LDFLAGS}  -o shamir-split ${OBJECTS}
-	strip shamir-split
+	$(CC) ${LDFLAGS}  -o "$@" ${OBJECTS}
+	strip "$@"
 
 shamir-combine: shamir-split
-	ln -f shamir-split shamir-combine
+	ln -f shamir-split "$@"
+
+shamir-test: ${OBJECTS}
+	$(CC) ${LDFLAGS}  -o "$@" ${OBJECTS}
+	strip "$@"
 
 shamir.1: shamir.manpage.xml
 	xmltoman shamir.manpage.xml > shamir.1
@@ -39,5 +43,11 @@ test:
 	echo 'copy/paste 3 of above'
 	./shamir-combine -t 3
 
+test-1:
+	${MAKE} clean
+	${MAKE} TEST_ITEMS='-DTESTING=1' shamir-test
+	./shamir-test
+	${MAKE} clean
+
 clean:
-	rm -rf shamir-split shamir-combine shamir.1 shamir.1.html *.o
+	rm -rf shamir-split shamir-combine shamir-test shamir.1 shamir.1.html *.o

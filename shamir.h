@@ -116,13 +116,7 @@ error_t combine(char *secret,                    // the reconstituted secret
 // wrapper API
 // ===========
 
-typedef struct {
-	int number;     // number of elements
-	size_t size;    // all elements are this maximum size
-	char **shares;  // '\0' terminated strings
-} shares_t;
-
-error_t wrapped_split(shares_t *shares,          // returns pointer to allocated data (caller must free after use)
+error_t wrapped_split(char **shares,             // returns pointer to allocated data (caller must free after use)
 		      const char *secret,        // hex or ASCII secret to split
 		      int security,              // bits or zero for auto, e.g. 512 => 64 bytes
 		      int threshold,             // shares to reconstruct secret
@@ -130,10 +124,12 @@ error_t wrapped_split(shares_t *shares,          // returns pointer to allocated
 		      bool diffusion,            // ? extra eccoding
 		      const char *prefix,        // for output like: prefix-N-share
 		      bool hexmode,              // false => ASCII
-		      const cprng_t *cprng       // NULL => internal RANDOM_SOURCE
-	);
+		      const cprng_t *cprng);     // NULL => internal RANDOM_SOURCE
 
-error_t wrapped_free_shares(shares_t *shares);   // to release wrapped_split allocation
+char **wrapped_allocate_shares(int number);      // allocate a sutable array for wrapped_split
+
+error_t wrapped_free_shares(char **shares,       // to clear and release share allocation
+			    int number);         // must be original allocation size
 
 error_t wrapped_combine(char *secret,            // the reconstituted secret
 			size_t secret_size,      // size of secret, must include space for '\0'

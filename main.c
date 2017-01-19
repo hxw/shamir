@@ -122,20 +122,23 @@ const char *read_share(void *data, int number, int threshold, size_t size) {
 #if defined(TESTING)
 bool tests(void) {
 
-	shares_t shares;
+	const int NUMBER = 3;
+	const int THRESHOLD = 2;
+
+	char **shares = wrapped_allocate_shares(NUMBER);
 
 	const char *initial_secret = "the quick brown fox jumps";
-	error_t err = wrapped_split(&shares, initial_secret, 256, 2, 3, false, NULL, false);
+	error_t err = wrapped_split(shares, initial_secret, 256, THRESHOLD, NUMBER, false, NULL, false, NULL);
 	if (ERROR_OK != err) {
 		fprintf(stdout, "split error: %d\n", err);
 		return false;
 	}
-	for (int i = 0; i < shares.number; ++i) {
-		fprintf(stdout, "share[%d]: %s\n", i + 1, shares.shares[i]);
+	for (int i = 0; i < NUMBER; ++i) {
+		fprintf(stdout, "share[%d]: %s\n", i + 1, shares[i]);
 	}
 
 	char secret[MAXLINELEN];
-	const char *inputs[2];
+	const char *inputs[THRESHOLD];
 
 	struct {
 		int a;
@@ -146,30 +149,36 @@ bool tests(void) {
 		{2,0}, {2,1}
 	};
 
+	fprintf(stdout, "check combinations\n");
+
 	for (unsigned int i = 0; i < (sizeof(combinations)/(sizeof(combinations[0]))); ++i) {
 		int a = combinations[i].a;
 		int b = combinations[i].b;
-		inputs[0] = shares.shares[a];
-		inputs[1] = shares.shares[b];
+		inputs[0] = shares[a];
+		inputs[1] = shares[b];
 
-		wrapped_combine(secret, sizeof(secret), inputs, 2, false, false);
+		wrapped_combine(secret, sizeof(secret), inputs, THRESHOLD, false, false);
 		if (ERROR_OK != err) {
 			fprintf(stdout, "combine error: %d\n", err);
 			return false;
 		}
 
 		fprintf(stdout, "recovered secret (%d,%d): %s\n", a, b, secret);
-		if (0 != strcmp(initial_secret, secret)) {
+		if (0 == strcmp(initial_secret, secret)) {
+			fprintf(stdout, "...OK\n");
+		} else {
 			fprintf(stdout, "recovers was not: %s\n", initial_secret);
 			return false;
 		}
 	}
 
-	err = wrapped_free_shares(&shares);
+	err = wrapped_free_shares(shares, NUMBER);
 	if (ERROR_OK != err) {
 		fprintf(stdout, "free error: %d\n", err);
 		return false;
 	}
+
+	fprintf(stdout, "check combinations of preset shares\n");
 
 	const char *s1[] = {
 		"1-47d86039ce3b487d2f1d1e96e900b6ee19ed7027e560262155bc6cb644ec4ae6",
@@ -183,13 +192,15 @@ bool tests(void) {
 		inputs[0] = s1[a];
 		inputs[1] = s1[b];
 
-		wrapped_combine(secret, sizeof(secret), inputs, 2, false, false);
+		wrapped_combine(secret, sizeof(secret), inputs, THRESHOLD, false, false);
 		if (ERROR_OK != err) {
 			fprintf(stdout, "combine error: %d\n", err);
 			return false;
 		}
 		fprintf(stdout, "recovered secret (%d,%d): %s\n", a, b, secret);
-		if (0 != strcmp(initial_secret, secret)) {
+		if (0 == strcmp(initial_secret, secret)) {
+			fprintf(stdout, "...OK\n");
+		} else {
 			fprintf(stdout, "recovers was not: %s\n", initial_secret);
 			return false;
 		}
