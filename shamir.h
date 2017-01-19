@@ -43,13 +43,13 @@ typedef enum {
 	ERROR_BUFFER_TOO_SMALL,
 	ERROR_BINARY_DATA,             // non ASCII bytes detected
 	ERROR_INVALID_SYNTAX,          // i.e. not prefix-number-share
-	ERROR_INVALID_SHARE,
-	ERROR_CANNOT_OPEN_RANDOM,
-	ERROR_CANNOT_CLOSE_RANDOM,
-	ERROR_CANNOT_READ_RANDOM,
+	ERROR_INVALID_SHARE,           // could be duplicate
+	ERROR_CANNOT_OPEN_RANDOM,      // problem with RANDOM_SOURCE
+	ERROR_CANNOT_CLOSE_RANDOM,     // ..
+	ERROR_CANNOT_READ_RANDOM,      // ..
 	ERROR_SECURITY_LEVEL_TOO_SMALL_FOR_DIFFUSION,
 	ERROR_SHARE_HAS_ILLEGAL_LENGTH,
-	ERROR_SHARES_HAVE_DIFFERENT_SECURITY_LEVELS,
+	ERROR_SHARES_HAVE_DIFFERENT_SECURITY_LEVELS,  // ie different bit counts
 	ERROR_SHARES_INCONSISTENT,     // possibly a single share was used twice
 
 	// no errors after here
@@ -71,7 +71,7 @@ typedef error_t process_share_t(void* data,          // for passing file handle 
 error_t split(const char *secret,             // hex or ASCII secret to split
 	      process_share_t *process_share, // called for each share to be saved
 	      void *data,                     // just passed to callback
-	      int security,                   // bits or zero for auto
+	      int security,                   // bits or zero for auto, e.g. 512 => 64 bytes
 	      int threshold,                  // shares to reconstruct secret
 	      int number,                     // total shares
 	      bool diffusion,                 // ? extra eccoding
@@ -87,7 +87,9 @@ typedef const char *read_share_t(void* data,     // for passing file handle etc
 				 size_t size);   // maximum bytes
 
 // fetch shares and combine back to get secret
-error_t combine(read_share_t *get_share,         // fetch a share string
+error_t combine(char * secret,                   // the reconstituted secret
+		size_t secret_size,              // size of secret, must include space for '\0'
+		read_share_t *get_share,         // fetch a share string
 		void *data,                      // just passed to callback
 		int threshold,                   // shares to reconstruct secret
 		bool diffusion,                  // ?

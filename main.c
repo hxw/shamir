@@ -20,14 +20,13 @@
  *  02111-1307 USA
  */
 
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <assert.h>
 #include <termios.h>
 #include <sys/mman.h>
 
@@ -67,7 +66,7 @@ error_t field_print_cb(void* data, const char *buffer, size_t length, int number
 }
 
 
-void do_split(int opt_security, int opt_threshold, int opt_number, bool opt_diffusion, char *opt_token, bool opt_quiet, bool opt_hex) {
+error_t do_split(int opt_security, int opt_threshold, int opt_number, bool opt_diffusion, char *opt_token, bool opt_quiet, bool opt_hex) {
 
 	if (! opt_quiet) {
 		printf("Generating shares using a (%d,%d) scheme with ", opt_threshold, opt_number);
@@ -97,7 +96,7 @@ void do_split(int opt_security, int opt_threshold, int opt_number, bool opt_diff
 
 	fprintf(stderr, "\n\n");
 
-	split(buffer, field_print_cb, stdout, opt_security, opt_threshold, opt_number, opt_diffusion, opt_token, opt_hex);
+	return split(buffer, field_print_cb, stdout, opt_security, opt_threshold, opt_number, opt_diffusion, opt_token, opt_hex);
 }
 
 
@@ -211,7 +210,11 @@ int main(int argc, char *argv[]) {
 		if (opt_token && (strlen(opt_token) > MAXTOKENLEN)) {
 			fatal("invalid parameters: token too long");
 		}
-		do_split(opt_security, opt_threshold, opt_number, opt_diffusion, opt_token, opt_quiet, opt_hex);
+		error_t err = do_split(opt_security, opt_threshold, opt_number, opt_diffusion, opt_token, opt_quiet, opt_hex);
+		if (ERROR_OK != err) {
+			printf("error: %d\n", err);
+			return 1;
+		}
 
 	} else if (opt_help || opt_showversion) {
 		puts("Combine shares using Shamir's Secret Sharing Scheme.\n"
@@ -227,11 +230,15 @@ int main(int argc, char *argv[]) {
 		if (opt_threshold < 2) {
 			fatal("invalid parameters: invalid threshold value");
 		}
-		error_t err = combine(read_share, &opt_quiet, opt_threshold, opt_diffusion, opt_hex);
+
+		char secret[MAXLINELEN];
+
+		error_t err = combine(secret, sizeof(secret), read_share, &opt_quiet, opt_threshold, opt_diffusion, opt_hex);
 		if (ERROR_OK != err) {
 			printf("error: %d\n", err);
 			return 1;
 		}
+		fprintf(stderr, "Resulting secret: %s\n", secret);
 	}
 	return 0;
 }

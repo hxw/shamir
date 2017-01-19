@@ -20,17 +20,14 @@
  *  02111-1307 USA
  */
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <assert.h>
-#include <termios.h>
-#include <sys/mman.h>
 
 #include <gmp.h>
 
@@ -118,43 +115,12 @@ error_t field_import(const unsigned int degree, mpz_t x, const char *s, int hexm
 }
 
 // print a field in hex or ASCII with optional prefix and share count
-#if 0
-error_t field_print(FILE *stream, const char *prefix, int format_length, int number, const unsigned int degree, const mpz_t x, bool hexmode) {
-	if (NULL != prefix) {
-		printf("%s-", prefix);
-	}
-	if (0 != format_length) {
-		printf("%0*d-", format_length, number);
-	}
-
-	if (hexmode) {
-		for(int i = degree / 4 - mpz_sizeinbase(x, 16); i; i--) {
-			fprintf(stream, "0");
-		}
-		mpz_out_str(stream, 16, x);
-		fprintf(stream, "\n");
-	} else {
-		char buf[MAXDEGREE / 8 + 1];
-		size_t t;
-		int warn = 0;
-		memset(buf, degree / 8 + 1, 0);
-		mpz_export(buf, &t, 1, 1, 0, 0, x);
-		for(size_t i = 0; i < t; i++) {
-			int printable = (buf[i] >= 32) && (buf[i] < 127);
-			warn = warn || ! printable;
-			fprintf(stream, "%c", printable ? buf[i] : '.');
-		}
-		fprintf(stream, "\n");
-		if (warn) {
-			return ERROR_BINARY_DATA;
-		}
-	}
-	return ERROR_OK;
-}
-#endif
-
-// print a field in hex or ASCII with optional prefix and share count
 error_t field_print(char *buffer, size_t size, const char *prefix, int format_length, int number, const unsigned int degree, const mpz_t x, bool hexmode) {
+
+	// ensure clear buffer
+	memset(buffer, 0, size);
+
+	// prefix
 	if (NULL != prefix) {
 		size_t n = snprintf(buffer, size, "%s-", prefix);
 		if (n > size) {
@@ -163,6 +129,8 @@ error_t field_print(char *buffer, size_t size, const char *prefix, int format_le
 		size -= n;
 		buffer += n;
 	}
+
+	// count
 	if (0 != format_length) {
 		size_t n = snprintf(buffer, size, "%0*d-", format_length, number);
 		if (n > size) {
@@ -171,29 +139,8 @@ error_t field_print(char *buffer, size_t size, const char *prefix, int format_le
 		size -= n;
 		buffer += n;
 	}
-/*
-	-- Function: char * mpz_get_str (char *STR, int BASE, const mpz_t OP)
-     Convert OP to a string of digits in base BASE.  The base argument
-     may vary from 2 to 62 or from -2 to -36.
 
-     For BASE in the range 2..36, digits and lower-case letters are
-     used; for -2..-36, digits and upper-case letters are used; for
-     37..62, digits, upper-case letters, and lower-case letters (in
-     that significance order) are used.
-
-     If STR is `NULL', the result string is allocated using the current
-     allocation function (*note Custom Allocation::).  The block will be
-     `strlen(str)+1' bytes, that being exactly enough for the string and
-     null-terminator.
-
-     If STR is not `NULL', it should point to a block of storage large
-     enough for the result, that being `mpz_sizeinbase (OP, BASE) + 2'.
-     The two extra bytes are for a possible minus sign, and the
-     null-terminator.
-
-     A pointer to the result string is returned, being either the
-     allocated block, or the given STR.
-*/
+	// share
 	if (hexmode) {
 		size_t s = mpz_sizeinbase(x, 16);
 		if (size < s + 2) {
@@ -227,7 +174,6 @@ error_t field_print(char *buffer, size_t size, const char *prefix, int format_le
 	}
 	return ERROR_OK;
 }
-
 
 
 // basic field arithmetic in GF(2^deg)
@@ -534,7 +480,7 @@ error_t split(const char *secret, process_share_t *process_share, void *data,
 
 // calculate the secret from shares
 
-error_t combine(read_share_t *get_share, void *data, int threshold, bool diffusion, bool hexmode) {
+error_t combine(char *secret, size_t secret_size, read_share_t *get_share, void *data, int threshold, bool diffusion, bool hexmode) {
 
 	mpz_t A[threshold][threshold], y[threshold], x;
 	unsigned s = 0;
@@ -604,15 +550,7 @@ error_t combine(read_share_t *get_share, void *data, int threshold, bool diffusi
 		}
 	}
 
-	// ***** FIX THIS: another callback?
-	//fprintf(stderr, "Resulting secret: ");
-	//field_print(stderr, NULL, 0, 0, pd.degree, y[threshold - 1], hexmode);
-	char buffer[MAXLINELEN];
-	error_t err = field_print(buffer, sizeof(buffer), NULL, 0, 0, pd.degree, y[threshold - 1], hexmode);
-
-	fprintf(stderr, "Resulting secret: %s\n", buffer);
-
-
+	error_t err = field_print(secret, secret_size, NULL, 0, 0, pd.degree, y[threshold - 1], hexmode);
 
 	// clean up
 	for (int i = 0; i < threshold; i++) {
