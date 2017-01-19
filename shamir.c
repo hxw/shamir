@@ -237,43 +237,66 @@ void field_invert(mpz_t z, const mpz_t x, poly_degree_t *pd) {
 
 // routines for the random number generator
 
-error_t cprng_init(int *cprng) {
-	if (NULL == cprng) {
-		return ERROR_CANNOT_OPEN_RANDOM;
-	}
+void *internal_random_open() {
 	int fd = open(RANDOM_SOURCE, O_RDONLY);
 	if (fd < 0) {
-		return ERROR_CANNOT_OPEN_RANDOM;
+		return NULL;
 	}
-	*cprng = fd;
-	return ERROR_OK;
-
+	return (void *)(intptr_t)fd;
 }
 
-error_t cprng_deinit(int *cprng) {
+int internal_random_close(void *data) {
+	int fd = (int)data;
+	return close(fd);
+}
+
+ssize_t internal_random_read(void *data, void *buffer, size_t nbytes) {
+	int fd = (int)data;
+	return read(fd, buffer, nbytes);
+}
+
+// to use internal random number generator
+static const cprng_t internal_cprng = {
+	internal_random_open,
+	internal_random_close,
+	internal_random_read
+};
+
+
+// higher level random routines
+
+error_t cprng_init(const cprng_t *cprng, void **data) {
+	if (NULL == cprng || NULL == data) {
+		return ERROR_CANNOT_OPEN_RANDOM;
+	}
+	*data = cprng->open();
+	if (NULL == *data) {
+		return ERROR_CANNOT_OPEN_RANDOM;
+	}
+	return ERROR_OK;
+}
+
+error_t cprng_deinit(const cprng_t *cprng, void *data) {
 	if (NULL == cprng) {
 		return ERROR_CANNOT_CLOSE_RANDOM;
 	}
-	if (-1 == *cprng) {
-		return ERROR_OK; // already closed
-	}
-	if (close(*cprng) < 0) {
+	if (cprng->close(data) < 0) {
 		return ERROR_CANNOT_CLOSE_RANDOM;
 	}
-	*cprng = -1;
 	return ERROR_OK;
 }
 
-error_t cprng_read(int *cprng, const unsigned int degree, mpz_t x) {
+error_t cprng_read(const cprng_t *cprng, void *data, const unsigned int degree, mpz_t x) {
 	if (NULL == cprng) {
 		return ERROR_CANNOT_READ_RANDOM;
 	}
 	char buf[MAXDEGREE / 8];
 	unsigned int count;
-	int i;
-	for(count = 0; count < degree / 8; count += i) {
-		if ((i = read(*cprng, buf + count, degree / 8 - count)) < 0) {
-			close(*cprng);
+	int n = 0;
+	for(count = 0; count < degree / 8; count += n) {
+		n = cprng->read(data, buf + count, degree / 8 - count);
+		if (n < 0) {
+			cprng->close(data);
 			return ERROR_CANNOT_READ_RANDOM;
 		}
 	}
@@ -411,7 +434,7 @@ int restore_secret(int n, mpz_t (*A)[n], mpz_t b[], poly_degree_t *pd) {
 // generate shares for a secret
 EXPORT error_t split(const char *secret, process_share_t *process_share, void *data,
 	      int security, int threshold, int number, bool diffusion,
-	      const char *prefix, bool hexmode) {
+		     const char *prefix, bool hexmode, const cprng_t *cprng) {
 
 	mpz_t x, y, coeff[threshold];
 
@@ -444,20 +467,24 @@ EXPORT error_t split(const char *secret, process_share_t *process_share, void *d
 		}
 	}
 
-	int cprng;
-	err = cprng_init(&cprng);
+	// setup random number generation
+	if (NULL == cprng) {
+		cprng = &internal_cprng;
+	}
+	void *cprng_data = NULL;
+	err = cprng_init(cprng, &cprng_data);
 	if (ERROR_OK != err) {
 		return err;
 	}
 
 	for(int i = 1; i < threshold; i++) {
 		mpz_init(coeff[i]);
-		err = cprng_read(&cprng, pd.degree, coeff[i]);
+		err = cprng_read(cprng, cprng_data, pd.degree, coeff[i]);
 		if (ERROR_OK != err) {
 			return err;
 		}
 	}
-	err = cprng_deinit(&cprng);
+	err = cprng_deinit(cprng, cprng_data);
 	if (ERROR_OK != err) {
 		return err;
 	}
@@ -582,7 +609,7 @@ error_t internal_split_cb(void* data, const char *buffer, size_t length, int num
 }
 
 
-EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode) {
+EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode, const cprng_t *cprng) {
 	if (NULL == shares) {
 		return 	ERROR_INPUT_IS_NULL;
 	}
@@ -612,7 +639,7 @@ EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security,
 	shares->shares = p;
 	shares->number = number;
 	shares->size = MAXLINELEN;
-	return split(secret, internal_split_cb, p, security, threshold, number, diffusion, prefix, hexmode);
+	return split(secret, internal_split_cb, p, security, threshold, number, diffusion, prefix, hexmode, cprng);
 
 }
 

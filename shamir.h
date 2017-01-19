@@ -62,6 +62,19 @@ typedef enum {
 // API
 // ===
 
+// external random number
+
+typedef void *random_open_t();
+typedef int random_close_t(void *data);
+typedef ssize_t random_read_t(void *data, void *buffer, size_t nbytes);
+
+typedef struct {
+	random_open_t *open;
+	random_close_t *close;
+	random_read_t *read;
+} cprng_t;
+
+
 // callback for split
 typedef error_t process_share_t(void* data,          // for passing file handle etc
 				const char *buffer,  // the share as a string
@@ -79,7 +92,8 @@ error_t split(const char *secret,                // hex or ASCII secret to split
 	      int number,                        // total shares
 	      bool diffusion,                    // ? extra eccoding
 	      const char *prefix,                // for output like: prefix-N-share
-	      bool hexmode                       // false => ASCII
+	      bool hexmode,                      // false => ASCII
+	      const cprng_t *cprng               // NULL => internal RANDOM_SOURCE
 	);
 
 
@@ -115,7 +129,8 @@ error_t wrapped_split(shares_t *shares,          // returns pointer to allocated
 		      int number,                // total shares
 		      bool diffusion,            // ? extra eccoding
 		      const char *prefix,        // for output like: prefix-N-share
-		      bool hexmode               // false => ASCII
+		      bool hexmode,              // false => ASCII
+		      const cprng_t *cprng       // NULL => internal RANDOM_SOURCE
 	);
 
 error_t wrapped_free_shares(shares_t *shares);   // to release wrapped_split allocation

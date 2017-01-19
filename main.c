@@ -96,7 +96,7 @@ error_t do_split(int opt_security, int opt_threshold, int opt_number, bool opt_d
 
 	fprintf(stderr, "\n\n");
 
-	return split(buffer, field_print_cb, stdout, opt_security, opt_threshold, opt_number, opt_diffusion, opt_token, opt_hex);
+	return split(buffer, field_print_cb, stdout, opt_security, opt_threshold, opt_number, opt_diffusion, opt_token, opt_hex, NULL);
 }
 
 
