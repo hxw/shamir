@@ -118,6 +118,100 @@ const char *read_share(void *data, int number, int threshold, size_t size) {
 	return buffer;
 }
 
+// test routine
+#if defined(TESTING)
+bool tests(void) {
+
+	shares_t shares;
+
+	const char *initial_secret = "the quick brown fox jumps";
+	error_t err = wrapped_split(&shares, initial_secret, 256, 2, 3, false, NULL, false);
+	if (ERROR_OK != err) {
+		fprintf(stdout, "split error: %d\n", err);
+		return false;
+	}
+	for (int i = 0; i < shares.number; ++i) {
+		fprintf(stdout, "share[%d]: %s\n", i + 1, shares.shares[i]);
+	}
+
+	char secret[MAXLINELEN];
+	const char *inputs[2];
+
+	struct {
+		int a;
+		int b;
+	} combinations[] = {
+		{0,1}, {0,2},
+		{1,0}, {1,2},
+		{2,0}, {2,1}
+	};
+
+	for (unsigned int i = 0; i < (sizeof(combinations)/(sizeof(combinations[0]))); ++i) {
+		int a = combinations[i].a;
+		int b = combinations[i].b;
+		inputs[0] = shares.shares[a];
+		inputs[1] = shares.shares[b];
+
+		wrapped_combine(secret, sizeof(secret), inputs, 2, false, false);
+		if (ERROR_OK != err) {
+			fprintf(stdout, "combine error: %d\n", err);
+			return false;
+		}
+
+		fprintf(stdout, "recovered secret (%d,%d): %s\n", a, b, secret);
+		if (0 != strcmp(initial_secret, secret)) {
+			fprintf(stdout, "recovers was not: %s\n", initial_secret);
+			return false;
+		}
+	}
+
+	err = wrapped_free_shares(&shares);
+	if (ERROR_OK != err) {
+		fprintf(stdout, "free error: %d\n", err);
+		return false;
+	}
+
+	const char *s1[] = {
+		"1-47d86039ce3b487d2f1d1e96e900b6ee19ed7027e560262155bc6cb644ec4ae6",
+		"2-8fb0c0739c769066e6955dbe4dbac861537c76fe53722ce81af0b9d2166f055f",
+		"3-c868a04a524dd86fa1ed6359d1d31de46af374b6c17c2aaf2034f50e27ee3fca"
+	};
+
+	for (unsigned int i = 0; i < (sizeof(combinations)/(sizeof(combinations[0]))); ++i) {
+		int a = combinations[i].a;
+		int b = combinations[i].b;
+		inputs[0] = s1[a];
+		inputs[1] = s1[b];
+
+		wrapped_combine(secret, sizeof(secret), inputs, 2, false, false);
+		if (ERROR_OK != err) {
+			fprintf(stdout, "combine error: %d\n", err);
+			return false;
+		}
+		fprintf(stdout, "recovered secret (%d,%d): %s\n", a, b, secret);
+		if (0 != strcmp(initial_secret, secret)) {
+			fprintf(stdout, "recovers was not: %s\n", initial_secret);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+int main(int argc, char *argv[]) {
+	(void) argc;
+	(void)argv;
+
+	if (tests()) {
+		fprintf(stdout, "OK\n");
+		return 0;
+	} else {
+		fprintf(stdout, "FAILED\n");
+		return 1;
+	}
+}
+
+#else
 
 int main(int argc, char *argv[]) {
 	char *name;
@@ -133,7 +227,6 @@ int main(int argc, char *argv[]) {
 	int opt_threshold = -1;
 	int opt_number = -1;
 	char *opt_token = NULL;
-
 #if ! NOMLOCK
 	if (mlockall(MCL_CURRENT | MCL_FUTURE) < 0) {
 		switch(errno) {
@@ -242,3 +335,4 @@ int main(int argc, char *argv[]) {
 	}
 	return 0;
 }
+#endif

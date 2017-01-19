@@ -411,7 +411,7 @@ int restore_secret(int n, mpz_t (*A)[n], mpz_t b[], poly_degree_t *pd) {
 // generate shares for a secret
 EXPORT error_t split(const char *secret, process_share_t *process_share, void *data,
 	      int security, int threshold, int number, bool diffusion,
-	      char *prefix, bool hexmode) {
+	      const char *prefix, bool hexmode) {
 
 	mpz_t x, y, coeff[threshold];
 
@@ -569,4 +569,80 @@ EXPORT error_t combine(char *secret, size_t secret_size, read_share_t *get_share
 	field_deinit(&pd);
 
 	return err;
+}
+
+
+// wrapped API functions
+
+error_t internal_split_cb(void* data, const char *buffer, size_t length, int number, int total) {
+	char **shares = (char **)data;
+	(void)total;
+	strncpy(shares[number - 1], buffer, length); // array is 0 based, number is 1..N
+	return ERROR_OK;
+}
+
+
+EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode) {
+	if (NULL == shares) {
+		return 	ERROR_INPUT_IS_NULL;
+	}
+
+	// allocate array
+	char **p = (char **)malloc(number * sizeof(char *));
+	if (NULL == p) {
+		return ERROR_MALLOC_FAILED;
+	}
+
+	// make all pointer initially NULL
+	memset(p, 0, number * sizeof(char *));
+
+	// allocate buffers
+	for (int i = 0; i < number ; ++i) {
+		p[i] = (char *)malloc(MAXLINELEN);
+		if (NULL == p[i]) {
+			for (int j = 0; j < i; ++j) {
+				free(p[j]);
+			}
+			free(p);
+			return ERROR_MALLOC_FAILED;
+		}
+	}
+	shares->shares = p;
+	shares->number = number;
+	return split(secret, internal_split_cb, p, security, threshold, number, diffusion, prefix, hexmode);
+
+}
+
+EXPORT error_t wrapped_free_shares(shares_t *shares) {
+	if (NULL == shares) {
+		return ERROR_INPUT_IS_NULL;
+	}
+	if (shares->number < 1) {
+		return ERROR_OK;
+	}
+	for (int j = 0; j < shares->number; ++j) {
+		free(shares->shares[j]);
+	}
+	free(shares->shares);
+	shares->shares = NULL;
+	shares->number = 0;
+	return ERROR_OK;
+}
+
+
+// combine
+
+// Prompt for shares
+const char *internal_combine_cb(void *data, int number, int threshold, size_t size) {
+	(void)threshold;
+	(void)size;
+	const char **shares = (const char **)data;
+	return shares[number - 1]; // array is 0 based, number is 1..N
+}
+
+EXPORT error_t wrapped_combine(char *secret, size_t secret_size, const char **shares, int threshold, bool diffusion, bool hexmode) {
+	if (NULL == shares) {
+		return 	ERROR_INPUT_IS_NULL;
+	}
+	return combine(secret, secret_size, internal_combine_cb, shares, threshold, diffusion, hexmode);
 }

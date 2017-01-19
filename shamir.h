@@ -53,6 +53,7 @@ typedef enum {
 	ERROR_SHARE_HAS_ILLEGAL_LENGTH,
 	ERROR_SHARES_HAVE_DIFFERENT_SECURITY_LEVELS,  // ie different bit counts
 	ERROR_SHARES_INCONSISTENT,     // possibly a single share was used twice
+	ERROR_MALLOC_FAILED,
 
 	// no errors after here
 	ERROR_maximum
@@ -70,15 +71,15 @@ typedef error_t process_share_t(void* data,          // for passing file handle 
 
 // split a secret from buffer into shares
 // each share is passed to callback (with extra data item e.g. file handle)
-error_t split(const char *secret,             // hex or ASCII secret to split
-	      process_share_t *process_share, // called for each share to be saved
-	      void *data,                     // just passed to callback
-	      int security,                   // bits or zero for auto, e.g. 512 => 64 bytes
-	      int threshold,                  // shares to reconstruct secret
-	      int number,                     // total shares
-	      bool diffusion,                 // ? extra eccoding
-	      char *prefix,                   // for output like: prefix-N-share
-	      bool opt_hex                    // false => ASCII
+error_t split(const char *secret,                // hex or ASCII secret to split
+	      process_share_t *process_share,    // called for each share to be saved
+	      void *data,                        // just passed to callback
+	      int security,                      // bits or zero for auto, e.g. 512 => 64 bytes
+	      int threshold,                     // shares to reconstruct secret
+	      int number,                        // total shares
+	      bool diffusion,                    // ? extra eccoding
+	      const char *prefix,                // for output like: prefix-N-share
+	      bool hexmode                       // false => ASCII
 	);
 
 
@@ -89,13 +90,41 @@ typedef const char *read_share_t(void* data,     // for passing file handle etc
 				 size_t size);   // maximum bytes
 
 // fetch shares and combine back to get secret
-error_t combine(char * secret,                   // the reconstituted secret
+error_t combine(char *secret,                    // the reconstituted secret
 		size_t secret_size,              // size of secret, must include space for '\0'
 		read_share_t *get_share,         // fetch a share string
 		void *data,                      // just passed to callback
 		int threshold,                   // shares to reconstruct secret
 		bool diffusion,                  // ?
 		bool hexmode);                   // false => ASCII
+
+
+// wrapper API
+// ===========
+
+typedef struct {
+	int number;
+	char **shares;
+} shares_t;
+
+error_t wrapped_split(shares_t *shares,          // returns pointer to allocated data (caller must free after use)
+		      const char *secret,        // hex or ASCII secret to split
+		      int security,              // bits or zero for auto, e.g. 512 => 64 bytes
+		      int threshold,             // shares to reconstruct secret
+		      int number,                // total shares
+		      bool diffusion,            // ? extra eccoding
+		      const char *prefix,        // for output like: prefix-N-share
+		      bool hexmode               // false => ASCII
+	);
+
+error_t wrapped_free_shares(shares_t *shares);   // to release wrapped_split allocation
+
+error_t wrapped_combine(char *secret,            // the reconstituted secret
+			size_t secret_size,      // size of secret, must include space for '\0'
+			const char **shares,     // must contain threshold * '\0' terminated entries
+			int threshold,           // shares to reconstruct secret
+			bool diffusion,          // ?
+			bool hexmode);           // false => ASCII
 
 
 // for use by main routine (not really for export)

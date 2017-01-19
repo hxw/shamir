@@ -2,6 +2,7 @@
 
 CFLAGS += -I/usr/local/include
 CFLAGS += -W -Wall -O2
+##CFLAGS += -DTESTING=1
 
 LDFLAGS += -L/usr/local/lib
 LDFLAGS += -lgmp
