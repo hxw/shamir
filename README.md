@@ -56,8 +56,9 @@
 Code refactored into two parts:
 * `shamir.c` is made to be usable as a separate library
 * `main.c` is mostly commandline compatible driver
-* clean up of syntax such as:
+* clean up of syntax and style as:
     + use of C99 like `for (int i =...`
-    * Always using braces (to avoid any *goto fails*)
+    * always using braces (to avoid any *goto fails*)
+    * remove global variables
 * `shamir.h` is the API
 * rename ssss to shamir
