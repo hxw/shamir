@@ -606,9 +606,12 @@ EXPORT error_t wrapped_split(shares_t *shares, const char *secret, int security,
 			free(p);
 			return ERROR_MALLOC_FAILED;
 		}
+		memset(p[i], 0, MAXLINELEN);
+
 	}
 	shares->shares = p;
 	shares->number = number;
+	shares->size = MAXLINELEN;
 	return split(secret, internal_split_cb, p, security, threshold, number, diffusion, prefix, hexmode);
 
 }
@@ -621,6 +624,7 @@ EXPORT error_t wrapped_free_shares(shares_t *shares) {
 		return ERROR_OK;
 	}
 	for (int j = 0; j < shares->number; ++j) {
+		memset(shares->shares[j], 0, shares->size); // clear sensitive data
 		free(shares->shares[j]);
 	}
 	free(shares->shares);

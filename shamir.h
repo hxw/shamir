@@ -103,8 +103,9 @@ error_t combine(char *secret,                    // the reconstituted secret
 // ===========
 
 typedef struct {
-	int number;
-	char **shares;
+	int number;     // number of elements
+	size_t size;    // all elements are this maximum size
+	char **shares;  // '\0' terminated strings
 } shares_t;
 
 error_t wrapped_split(shares_t *shares,          // returns pointer to allocated data (caller must free after use)

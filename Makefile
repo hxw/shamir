@@ -2,7 +2,7 @@
 
 CFLAGS += -I/usr/local/include
 CFLAGS += -W -Wall -O2
-##CFLAGS += -DTESTING=1
+//CFLAGS += -DTESTING=1
 
 LDFLAGS += -L/usr/local/lib
 LDFLAGS += -lgmp
@@ -40,4 +40,4 @@ test:
 	./shamir-combine -t 3
 
 clean:
-	rm -rf shamir-split shamir-combine shamir.1 shamir.1.html
+	rm -rf shamir-split shamir-combine shamir.1 shamir.1.html *.o
