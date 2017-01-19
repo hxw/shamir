@@ -23,6 +23,8 @@
 #if !defined(_SSSS_H_)
 #define _SSSS_H_ 1
 
+#include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #define VERSION "0.5"

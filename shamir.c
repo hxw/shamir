@@ -42,6 +42,13 @@ typedef struct {
 #define mpz_lshift(A, B, l) mpz_mul_2exp(A, B, l)
 #define mpz_sizeinbits(A) (mpz_cmp_ui(A, 0) ? mpz_sizeinbase(A, 2) : 0)
 
+// for library use
+#if defined(WIN32) || defined(_WIN32)
+#define EXPORT __declspec(dllexport)
+#else
+#define EXPORT
+#endif
+
 
 // field arithmetic routines
 
@@ -402,7 +409,7 @@ int restore_secret(int n, mpz_t (*A)[n], mpz_t b[], poly_degree_t *pd) {
 
 
 // generate shares for a secret
-error_t split(const char *secret, process_share_t *process_share, void *data,
+EXPORT error_t split(const char *secret, process_share_t *process_share, void *data,
 	      int security, int threshold, int number, bool diffusion,
 	      char *prefix, bool hexmode) {
 
@@ -480,7 +487,7 @@ error_t split(const char *secret, process_share_t *process_share, void *data,
 
 // calculate the secret from shares
 
-error_t combine(char *secret, size_t secret_size, read_share_t *get_share, void *data, int threshold, bool diffusion, bool hexmode) {
+EXPORT error_t combine(char *secret, size_t secret_size, read_share_t *get_share, void *data, int threshold, bool diffusion, bool hexmode) {
 
 	mpz_t A[threshold][threshold], y[threshold], x;
 	unsigned s = 0;
