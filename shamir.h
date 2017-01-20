@@ -64,14 +64,16 @@ typedef enum {
 
 // external random number
 
-typedef void *random_open_t();
-typedef int random_close_t(void *data);
-typedef ssize_t random_read_t(void *data, void *buffer, size_t nbytes);
+typedef void *random_open_t(void *data);                                 // data is cprng_t.argument
+typedef int random_close_t(void *data);                                  // data is return value from open
+typedef ssize_t random_read_t(void *data, void *buffer, size_t nbytes);  // data is return value from open
 
+// for split cprng parameter
 typedef struct {
 	random_open_t *open;
 	random_close_t *close;
 	random_read_t *read;
+	void *argument; // passed to open call
 } cprng_t;
 
 
@@ -124,7 +126,8 @@ error_t wrapped_split(char **shares,             // returns pointer to allocated
 		      bool diffusion,            // ? extra eccoding
 		      const char *prefix,        // for output like: prefix-N-share
 		      bool hexmode,              // false => ASCII
-		      const cprng_t *cprng);     // NULL => internal RANDOM_SOURCE
+		      const char *random_bytes,  // NULL => internal RANDOM_SOURCE, otherwise array of random data
+		      size_t byte_count);        // ... must be: threshold * MAX_DEGREE/8 bytes long
 
 char **wrapped_allocate_shares(int number);      // allocate a sutable array for wrapped_split
 

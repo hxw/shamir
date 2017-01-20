@@ -128,7 +128,7 @@ bool tests(void) {
 	char **shares = wrapped_allocate_shares(NUMBER);
 
 	const char *initial_secret = "the quick brown fox jumps";
-	error_t err = wrapped_split(shares, initial_secret, 256, THRESHOLD, NUMBER, false, NULL, false, NULL);
+	error_t err = wrapped_split(shares, initial_secret, 256, THRESHOLD, NUMBER, false, NULL, false, NULL, 0);
 	if (ERROR_OK != err) {
 		fprintf(stdout, "split error: %d\n", err);
 		return false;

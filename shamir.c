@@ -257,11 +257,10 @@ ssize_t internal_random_read(void *data, void *buffer, size_t nbytes) {
 
 // to use internal random number generator
 static const cprng_t internal_cprng = {
-	internal_random_open,
-	internal_random_close,
-	internal_random_read
+	.open = internal_random_open,
+	.close = internal_random_close,
+	.read = internal_random_read
 };
-
 
 // higher level random routines
 
@@ -269,7 +268,7 @@ error_t cprng_init(const cprng_t *cprng, void **data) {
 	if (NULL == cprng || NULL == data) {
 		return ERROR_CANNOT_OPEN_RANDOM;
 	}
-	*data = cprng->open();
+	*data = cprng->open(cprng->argument);
 	if (NULL == *data) {
 		return ERROR_CANNOT_OPEN_RANDOM;
 	}
@@ -599,6 +598,37 @@ EXPORT error_t combine(char *secret, size_t secret_size, read_share_t *get_share
 }
 
 
+// byte buffer of random data
+
+typedef struct {
+	const char *buffer;
+	size_t position;
+	size_t length;
+} random_buffer_t;
+
+void *buffered_random_open(void *data) {
+	return data;
+}
+
+int buffered_random_close(void *data) {
+	(void)data;
+	return 0;
+}
+
+ssize_t buffered_random_read(void *data, void *buffer, size_t nbytes) {
+	random_buffer_t *rb = (random_buffer_t *)data;
+	if (rb->position >= rb->length) {
+		return -1;
+	}
+
+	ssize_t n = 0;
+	char *b = (char *)buffer;
+	for (; nbytes > 0 && rb->position < rb->length; --nbytes, ++n) {
+		*b++ = rb->buffer[rb->position++];
+	}
+	return n;
+}
+
 // wrapped API functions
 
 error_t internal_split_cb(void* data, const char *buffer, size_t length, int number, int total) {
@@ -609,11 +639,25 @@ error_t internal_split_cb(void* data, const char *buffer, size_t length, int num
 }
 
 
-EXPORT error_t wrapped_split(char **shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode, const cprng_t *cprng) {
+EXPORT error_t wrapped_split(char **shares, const char *secret, int security, int threshold, int number, bool diffusion, const char *prefix, bool hexmode, const char *random_bytes, size_t byte_count) {
 	if (NULL == shares) {
 		return 	ERROR_INPUT_IS_NULL;
 	}
-	return split(secret, internal_split_cb, shares, security, threshold, number, diffusion, prefix, hexmode, cprng);
+
+	random_buffer_t buffer = {
+		.buffer = random_bytes,
+		.position = 0,
+		.length = byte_count
+	};
+	// to use buffered random number generator
+	const cprng_t buffered_cprng = {
+		.open = buffered_random_open,
+		.close = buffered_random_close,
+		.read = buffered_random_read,
+		.argument = &buffer
+	};
+
+	return split(secret, internal_split_cb, shares, security, threshold, number, diffusion, prefix, hexmode, NULL == random_bytes ? NULL : &buffered_cprng);
 
 }
 
