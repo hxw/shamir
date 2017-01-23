@@ -237,7 +237,8 @@ void field_invert(mpz_t z, const mpz_t x, poly_degree_t *pd) {
 
 // routines for the random number generator
 
-void *internal_random_open() {
+void *internal_random_open(void *data) {
+	(void)data;
 	int fd = open(RANDOM_SOURCE, O_RDONLY);
 	if (fd < 0) {
 		return NULL;
